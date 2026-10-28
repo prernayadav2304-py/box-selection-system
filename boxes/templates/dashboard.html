@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Box Selection System</title>
+<style>
+  :root{--ink:#1b2a41;--muted:#5d6b7e;--line:#dde3ec;--blue:#2459d6;--bg:#f5f7fb;--green:#0d7a5f;--red:#b3261e}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{background:#14213d;color:#fff;padding:16px 24px}
+  header h1{margin:0;font-size:20px} header p{margin:2px 0 0;color:#b8c4dc;font-size:13px}
+  main{max-width:1100px;margin:24px auto;padding:0 16px;display:grid;gap:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}
+  h2{margin:0 0 4px;font-size:17px} .sub{color:var(--muted);font-size:13px;margin-bottom:10px}
+  label{display:block;font-size:12px;font-weight:600;margin:10px 0 3px;color:#3a4a60}
+  input{width:100%;padding:9px 10px;border:1px solid #cfd8e5;border-radius:8px;font:inherit}
+  .row{display:grid;grid-template-columns:repeat(2,1fr);gap:0 10px}
+  button{margin-top:12px;background:var(--blue);color:#fff;border:0;border-radius:8px;padding:10px 14px;font:600 14px inherit;cursor:pointer}
+  button:disabled{opacity:.6;cursor:wait}
+  button.danger{background:#fff;color:var(--red);border:1px solid #e8b9b5;margin:0;padding:4px 8px;font-size:12px}
+  .msg{margin-top:8px;font-size:13px;display:none;padding:8px 10px;border-radius:8px}
+  .msg.ok{background:#e8f6f1;color:var(--green);display:block}
+  .msg.err{background:#fdeceb;color:var(--red);display:block}
+  .list{display:grid;gap:6px;margin-top:10px;max-height:240px;overflow:auto}
+  .item{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px}
+  .item small{color:var(--muted);display:block}
+  .qty{width:70px}
+  table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow-x:auto}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600}
+  .b-ok{background:#e8f6f1;color:var(--green)} .b-bad{background:#fdeceb;color:var(--red)} .b-warn{background:#fff4dc;color:#8a5a00}
+  .note{font-size:12px;color:var(--muted);margin-top:10px}
+  svg{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fafbfd}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>Box Selection System</h1><p>Units: dimensions in cm, weight in kg, cost in INR (₹)</p></header>
+<main>
+  <div class="grid2">
+    <section class="card">
+      <h2>Add product</h2><div class="sub">Name, unique SKU, size and weight</div>
+      <form id="pForm">
+        <label>Name</label><input id="pName" required maxlength="120">
+        <label>SKU (unique)</label><input id="pSku" required maxlength="64">
+        <div class="row">
+          <div><label>Length</label><input id="pL" type="number" min="0.01" step="0.01" required></div>
+          <div><label>Width</label><input id="pW" type="number" min="0.01" step="0.01" required></div>
+          <div><label>Height</label><input id="pH" type="number" min="0.01" step="0.01" required></div>
+          <div><label>Weight (kg)</label><input id="pWt" type="number" min="0.01" step="0.01" required></div>
+        </div>
+        <button type="submit">Save product</button>
+      </form>
+      <div id="pMsg" class="msg" role="status"></div>
+      <div id="pList" class="list"></div>
+    </section>
+    <section class="card">
+      <h2>Add shipping box</h2><div class="sub">Internal size, capacity and cost</div>
+      <form id="bForm">
+        <label>Name</label><input id="bName" required maxlength="120">
+        <label>Code (unique)</label><input id="bCode" required maxlength="64">
+        <div class="row">
+          <div><label>Inner length</label><input id="bL" type="number" min="0.01" step="0.01" required></div>
+          <div><label>Inner width</label><input id="bW" type="number" min="0.01" step="0.01" required></div>
+          <div><label>Inner height</label><input id="bH" type="number" min="0.01" step="0.01" required></div>
+          <div><label>Max weight (kg)</label><input id="bMax" type="number" min="0.01" step="0.01" required></div>
+        </div>
+        <label>Cost (₹)</label><input id="bCost" type="number" min="0" step="0.01" required>
+        <button type="submit">Save box</button>
+      </form>
+      <div id="bMsg" class="msg" role="status"></div>
+      <div id="bList" class="list"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Find best box</h2><div class="sub">Tick products and set quantities</div>
+    <div id="orderList" class="list"></div>
+    <button id="goBtn" type="button">Find best box</button>
+    <div id="rMsg" class="msg" role="status"></div>
+    <div id="result"></div>
+  </section>
+
+  <section class="card">
+    <h2>Recent orders</h2><div class="sub">Every recommendation request is stored</div>
+    <div id="orders"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = v => String(v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let products = [], boxes = [];
+
+async function api(url, opts = {}) {
+  let res;
+  try {
+    res = await fetch(url, {headers: {"Content-Type": "application/json"}, ...opts});
+  } catch (e) { throw new Error("Network error: could not reach the server."); }
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const parts = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : (typeof v === "object" ? JSON.stringify(v) : v)}`);
+    throw new Error(parts.join(" | ") || `Request failed (${res.status})`);
+  }
+  return data;
+}
+function show(id, text, ok) { const el = $(id); el.textContent = text; el.className = "msg " + (ok ? "ok" : "err"); }
+
+function renderLists() {
+  $("pList").innerHTML = products.map(p => `<div class="item"><div><b>#${p.id} ${esc(p.name)}</b> (${esc(p.sku)})<small>${p.length}×${p.width}×${p.height} cm · ${p.weight} kg</small></div><button class="danger" data-del-p="${p.id}">Delete</button></div>`).join("") || '<div class="sub">No products yet.</div>';
+  $("bList").innerHTML = boxes.map(b => `<div class="item"><div><b>#${b.id} ${esc(b.name)}</b> (${esc(b.code)})<small>${b.inner_length}×${b.inner_width}×${b.inner_height} cm · max ${b.max_weight} kg · ₹${b.cost}</small></div><button class="danger" data-del-b="${b.id}">Delete</button></div>`).join("") || '<div class="sub">No boxes yet.</div>';
+  $("orderList").innerHTML = products.map(p => `<div class="item"><label style="margin:0;display:flex;gap:8px;align-items:center"><input type="checkbox" data-pick="${p.id}" style="width:auto"><span><b>${esc(p.name)}</b><small>${p.length}×${p.width}×${p.height} cm · ${p.weight} kg</small></span></label><input class="qty" type="number" min="1" step="1" value="1" data-qty="${p.id}" aria-label="Quantity for ${esc(p.name)}"></div>`).join("") || '<div class="sub">Add products first.</div>';
+}
+
+async function load() {
+  try {
+    const [p, b, o] = await Promise.all([api("/api/products/?page_size=100"), api("/api/boxes/?page_size=100"), api("/api/orders/?page_size=10")]);
+    products = p.results; boxes = b.results; renderLists(); renderOrders(o.results);
+  } catch (e) { show("rMsg", e.message, false); }
+}
+
+function renderOrders(list) {
+  if (!list.length) { $("orders").innerHTML = '<div class="sub">No orders yet.</div>'; return; }
+  $("orders").innerHTML = `<table><thead><tr><th>ID</th><th>Status</th><th>Box</th><th>Weight (kg)</th><th>Items</th><th>Created</th></tr></thead><tbody>${list.map(o => `<tr><td>${o.id}</td><td>${esc(o.status)}</td><td>${esc(o.box_name || "—")}</td><td>${o.total_weight}</td><td>${o.items.map(i => esc(i.product_name) + " ×" + i.quantity).join(", ")}</td><td>${new Date(o.created_at).toLocaleString()}</td></tr>`).join("")}</tbody></table>`;
+}
+
+document.addEventListener("click", async e => {
+  const dp = e.target.dataset.delP, db = e.target.dataset.delB;
+  if (!dp && !db) return;
+  if (!confirm("Delete this item?")) return;
+  try { await api(dp ? `/api/products/${dp}/` : `/api/boxes/${db}/`, {method: "DELETE"}); await load(); }
+  catch (err) { show("rMsg", err.message, false); }
+});
+
+$("pForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    await api("/api/products/", {method: "POST", body: JSON.stringify({name: $("pName").value.trim(), sku: $("pSku").value.trim(), length: $("pL").value, width: $("pW").value, height: $("pH").value, weight: $("pWt").value})});
+    e.target.reset(); show("pMsg", "Product saved.", true); await load();
+  } catch (err) { show("pMsg", err.message, false); }
+});
+$("bForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    await api("/api/boxes/", {method: "POST", body: JSON.stringify({name: $("bName").value.trim(), code: $("bCode").value.trim(), inner_length: $("bL").value, inner_width: $("bW").value, inner_height: $("bH").value, max_weight: $("bMax").value, cost: $("bCost").value})});
+    e.target.reset(); show("bMsg", "Box saved.", true); await load();
+  } catch (err) { show("bMsg", err.message, false); }
+});
+
+const BADGE = {feasible: "b-ok", infeasible_proven: "b-bad", infeasible_search_exhausted: "b-warn", unknown_limit_reached: "b-warn"};
+
+function topView(data) {
+  const b = data.box.inner_dimensions_cm, L = +b.length, W = +b.width, S = 360 / Math.max(L, W);
+  const colors = ["#9db8f5", "#a8e0c9", "#f6cf8b", "#e7b0c9", "#c3b5ee", "#b7dff0"];
+  const rects = data.placements.map((p, i) => {
+    const x = +p.position_cm.x * S, y = +p.position_cm.y * S, w = +p.placed_size_cm.length * S, h = +p.placed_size_cm.width * S;
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${colors[i % 6]}" fill-opacity=".75" stroke="#1b2a41" stroke-width="1"><title>${esc(p.name)} z=${p.position_cm.z}</title></rect><text x="${x + 3}" y="${y + 13}" font-size="10">${esc(p.name)} z${p.position_cm.z}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${L * S} ${W * S}" width="${L * S}" role="img" aria-label="Top view of packing"><rect width="${L * S}" height="${W * S}" fill="none" stroke="#1b2a41" stroke-width="2"/>${rects}</svg>`;
+}
+
+$("goBtn").addEventListener("click", async () => {
+  const items = [...document.querySelectorAll("[data-pick]:checked")].map(c => ({product_id: +c.dataset.pick, quantity: +document.querySelector(`[data-qty="${c.dataset.pick}"]`).value}));
+  if (!items.length) { show("rMsg", "Select at least one product.", false); return; }
+  if (items.some(i => !Number.isInteger(i.quantity) || i.quantity < 1)) { show("rMsg", "Quantities must be whole numbers ≥ 1.", false); return; }
+  const btn = $("goBtn"); btn.disabled = true; $("result").innerHTML = ""; show("rMsg", "Checking boxes…", true);
+  try {
+    const d = await api("/api/recommend/", {method: "POST", body: JSON.stringify({items})});
+    $("rMsg").className = "msg";
+    let html = "";
+    if (d.status === "recommended") {
+      const b = d.box;
+      html += `<h3>✓ ${esc(b.name)} — ₹${b.cost_inr}</h3><p>Box ${b.inner_dimensions_cm.length}×${b.inner_dimensions_cm.width}×${b.inner_dimensions_cm.height} cm · weight ${d.total_weight_kg}/${b.max_weight_kg} kg (${b.weight_utilization_percent}%) · space used ${b.space_utilization_percent}% · remaining capacity ${b.remaining_weight_capacity_kg} kg</p>`;
+      html += `<p>${esc(d.message)}</p>`;
+      html += `<p>Validation: <span class="badge ${d.validation.valid ? "b-ok" : "b-bad"}">${d.validation.valid ? "valid" : "INVALID"}</span> (${d.validation.checks.join(", ")})</p>`;
+      html += topView(d);
+      html += `<table><thead><tr><th>Item</th><th>Position x,y,z (cm)</th><th>Placed size L×W×H (cm)</th></tr></thead><tbody>${d.placements.map(p => `<tr><td>${esc(p.name)}</td><td>${p.position_cm.x}, ${p.position_cm.y}, ${p.position_cm.z}</td><td>${p.placed_size_cm.length}×${p.placed_size_cm.width}×${p.placed_size_cm.height}</td></tr>`).join("")}</tbody></table>`;
+    } else {
+      html += `<h3>${d.status === "undetermined" ? "Undetermined" : "No suitable box found"}</h3><p>${esc(d.message)}</p>`;
+    }
+    html += `<h4>All boxes evaluated (cheapest first)</h4><table><thead><tr><th>Box</th><th>Cost ₹</th><th>Result</th><th>Reason</th></tr></thead><tbody>${d.boxes_evaluated.map(e => `<tr><td>${esc(e.box_name)}</td><td>${e.cost_inr}</td><td><span class="badge ${BADGE[e.status]}">${esc(e.status)}</span></td><td style="white-space:normal">${esc(e.reason)}</td></tr>`).join("")}</tbody></table>`;
+    html += `<div class="note">${esc(d.algorithm_note)} Search limits: ${d.search_limits.max_nodes} nodes / ${d.search_limits.max_seconds}s. "infeasible_search_exhausted" is not a mathematical proof.</div>`;
+    $("result").innerHTML = html;
+    await load();
+  } catch (err) { show("rMsg", err.message, false); }
+  finally { btn.disabled = false; }
+});
+load();
+</script>
+</body>
+</html>
